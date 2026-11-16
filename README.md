@@ -23,8 +23,9 @@ It works on desktop and mobile.
   Todoist.
 
 - **Copy link to heading** copies a link to the heading above the cursor.
-- **Copy link to block** copies a link to the list item or paragraph at the
-  cursor, and gives it a block ID when it has none.
+- **Copy link to block** copies a link to the block at the cursor, and gives
+  it a block ID when it has none. A list item or a paragraph gets the ID at
+  its end. A quote, callout, table or code block gets it on a line below.
 
 A line can be sent when it is a plain bullet, `[ ]` or `[/]`.
 
@@ -47,7 +48,8 @@ Lines below the task:
 
 - An open child task becomes a subtask, at any depth, and its line becomes `[>]`.
 - A child task that is done or cancelled is not sent.
-- Other child lines go in the description of the task above them.
+- Other child lines go in the description of the task above them, without
+  their block IDs.
 
 The description starts with a link back to the note, at the heading above the
 task.

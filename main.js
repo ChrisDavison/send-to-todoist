@@ -53,6 +53,9 @@ const PRIORITY = /[🔺⏫🔼]/u;
 const PRIORITIES = { "🔺": "p1", "⏫": "p2", "🔼": "p3" };
 const TASK_FIELD = "(?:[⏳📅🛫➕✅❌]\\uFE0F?\\s*\\d{4}-\\d{2}-\\d{2}|[🔺⏫🔼🔽⏬]\\uFE0F?|\\^[A-Za-z0-9-]+$)";
 const TASK_FIELDS = new RegExp(TASK_FIELD, "gu");
+const BLOCK_ID = /\s+\^([A-Za-z0-9-]+)\s*$/;
+// Blocks that carry their ID on a line of its own below them.
+const BLOCKS_WITH_ID_BELOW = ["blockquote", "callout", "code", "table"];
 const TRAILING_TASK_FIELDS = new RegExp(`(?:\\s*${TASK_FIELD})+\\s*$`, "u");
 
 // ---------------------------------------------------------------------------
@@ -135,10 +138,10 @@ function buildTask(lines, start) {
     while (owner.bullets.length && owner.bullets[owner.bullets.length - 1] >= width) owner.bullets.pop();
     const nesting = "  ".repeat(owner.bullets.length);
     if (item) {
-      owner.notes.push(`${nesting}- ${item.body}`);
+      owner.notes.push(`${nesting}- ${item.body.replace(BLOCK_ID, "")}`);
       owner.bullets.push(width);
     } else {
-      owner.notes.push(`${nesting}${lines[index].trim()}`);
+      owner.notes.push(`${nesting}${lines[index].trim().replace(BLOCK_ID, "")}`);
     }
   }
   return root;
@@ -439,19 +442,33 @@ class SendToTodoistPlugin extends Plugin {
     new Notice("Link copied.");
   }
 
-  // Gives the block at the cursor an ID when it has none. The ID goes at the end of a list item's line or of a paragraph.
+  /*
+   * Gives the block at the cursor an ID when it has none. A list item or a
+   * paragraph gets the ID at its end. A quote, callout, table or code block
+   * gets it on a line of its own below.
+   */
   copyBlockLink(editor, file) {
     const cursor = editor.getCursor().line;
-    const paragraph = this.app.metadataCache
+    const section = this.app.metadataCache
       .getFileCache(file)
-      ?.sections?.find((section) => section.type === "paragraph" && section.position.start.line <= cursor && cursor <= section.position.end.line);
-    const line = parseListItem(editor.getLine(cursor)) ? cursor : paragraph?.position.end.line;
-    if (line === undefined) return new Notice("A block link needs a paragraph or a list item.");
+      ?.sections?.find((candidate) => candidate.position.start.line <= cursor && cursor <= candidate.position.end.line);
+    const below = BLOCKS_WITH_ID_BELOW.includes(section?.type);
+    let line;
+    if (!below && parseListItem(editor.getLine(cursor))) line = cursor;
+    else if (below || section?.type === "paragraph") line = section.position.end.line;
+    else return new Notice("There is no block at the cursor.");
+
     const text = editor.getLine(line);
-    let id = text.match(/\s\^([A-Za-z0-9-]+)\s*$/)?.[1];
+    const end = { line, ch: text.length };
+    let id = below ? editor.getRange(end, { line: line + 3, ch: 0 }).match(/^\n\s*\n\^([A-Za-z0-9-]+)\s*(?:\n|$)/)?.[1] : text.match(BLOCK_ID)?.[1];
     if (!id) {
       id = Math.random().toString(36).slice(2, 8);
-      editor.replaceRange(` ^${id}`, { line, ch: text.trimEnd().length }, { line, ch: text.length });
+      if (below) {
+        const textFollows = line + 1 < editor.lineCount() && editor.getLine(line + 1).trim() !== "";
+        editor.replaceRange(`\n\n^${id}${textFollows ? "\n" : ""}`, end);
+      } else {
+        editor.replaceRange(` ^${id}`, { line, ch: text.trimEnd().length }, end);
+      }
     }
     return this.copyLink(this.placeLink(file, line, id));
   }

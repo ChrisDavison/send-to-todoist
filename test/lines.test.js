@@ -63,7 +63,7 @@ test("child tasks become subtasks and other child lines become notes", () => {
   const lines = [
     "- [ ] Parent",
     "\t- A bullet",
-    "\t\t- A nested bullet",
+    "\t\t- A nested bullet ^nest01",
     "\t- [ ] Open child",
     "\t\t- Child bullet",
     "\t\t- [ ] Grandchild",
