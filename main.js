@@ -406,9 +406,10 @@ class SendToTodoistPlugin extends Plugin {
     const lines = editor.getValue().split("\n");
     const selected = new Set();
     for (const selection of editor.listSelections()) {
-      const first = Math.min(selection.anchor.line, selection.head.line);
-      const last = Math.max(selection.anchor.line, selection.head.line);
-      for (let line = first; line <= last; line++) selected.add(line);
+      const [from, to] = [selection.anchor, selection.head].sort((left, right) => left.line - right.line || left.ch - right.ch);
+      // A selection of whole lines ends at the start of the next line; that line is not selected.
+      const last = to.ch === 0 && to.line > from.line ? to.line - 1 : to.line;
+      for (let line = from.line; line <= last; line++) selected.add(line);
     }
     const starts = this.rootLines(lines, (line, item) => selected.has(line));
     if (!starts.length) return new Notice("No open task or list item here.");
@@ -518,7 +519,7 @@ class SendToTodoistPlugin extends Plugin {
 
   async openDoctor() {
     const existing = this.app.workspace.getLeavesOfType(DOCTOR_VIEW)[0];
-    const leaf = existing ?? this.app.workspace.getLeaf("tab");
+    const leaf = existing ?? this.app.workspace.getLeaf(Platform.isPhone ? "tab" : "split");
     if (!existing) await leaf.setViewState({ type: DOCTOR_VIEW, active: true });
     this.app.workspace.revealLeaf(leaf);
   }
@@ -573,7 +574,6 @@ class DoctorView extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
-    this.besideLeaf = null;
     this.renderSoon = debounce(() => this.render(), 300, true);
   }
 
@@ -616,15 +616,24 @@ class DoctorView extends ItemView {
     });
   }
 
-  // On a phone there is no split, so the note opens in a new tab.
+  // Notes open in the tab group next to the doctor, so the two stay in view.
   openBeside(file) {
-    if (Platform.isPhone) return this.app.workspace.getLeaf("tab").openFile(file);
-    let attached = false;
-    this.app.workspace.iterateAllLeaves((leaf) => {
-      if (leaf === this.besideLeaf) attached = true;
+    const { workspace } = this.app;
+    let neighbour = null;
+    let shown = null;
+    workspace.iterateRootLeaves((leaf) => {
+      if (leaf.parent === this.leaf.parent) return;
+      neighbour ??= leaf;
+      if (leaf.view.file === file) shown = leaf;
     });
-    if (!attached) this.besideLeaf = this.app.workspace.createLeafBySplit(this.leaf, "vertical");
-    return this.besideLeaf.openFile(file);
+    if (shown) return workspace.setActiveLeaf(shown, { focus: true });
+    if (!neighbour) {
+      // A phone has one tab group. Elsewhere the doctor fills the window, so split it.
+      const leaf = Platform.isPhone ? workspace.getLeaf("tab") : workspace.createLeafBySplit(this.leaf, "vertical");
+      return leaf.openFile(file);
+    }
+    workspace.setActiveLeaf(neighbour);
+    return workspace.getLeaf("tab").openFile(file);
   }
 
   noteLink(parent, file) {
