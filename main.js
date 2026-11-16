@@ -782,7 +782,7 @@ class DoctorView extends ItemView {
     const panel = root.createDiv({ cls: "stt-panel" });
     for (const row of this.rows(catalog, entries, unassigned)) {
       const element = panel.createDiv({ cls: `stt-row${row.isProject ? " stt-project" : ""}` });
-      element.style.paddingLeft = `${12 + row.depth * 18}px`;
+      element.style.setProperty("--stt-depth", row.depth);
       element.createDiv({ cls: "stt-name", text: row.name });
       const used = row.entries.length || row.unassigned.length;
       element.createSpan({

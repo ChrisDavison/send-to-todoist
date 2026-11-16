@@ -84,6 +84,13 @@ appear under Inbox. A click on a note opens it beside the doctor.
   empty to make links without a vault name.
 - **Templates folder**: the doctor ignores notes in this folder.
 
+## Network use
+
+The plugin needs a Todoist account and its API token. It talks only to the
+Todoist API (`api.todoist.com`): it sends the text of the tasks you send, with
+their child lines and a link to the note, and it reads the names of your
+projects, sections and labels. It sends nothing else, and it has no telemetry.
+
 ## Install
 
 Copy `main.js`, `manifest.json` and `styles.css` from a release into
