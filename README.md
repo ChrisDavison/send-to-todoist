@@ -22,6 +22,10 @@ It works on desktop and mobile.
 - **Open doctor** opens a tab that checks the targets in your vault against
   Todoist.
 
+- **Copy link to heading** copies a link to the heading above the cursor.
+- **Copy link to block** copies a link to the list item or paragraph at the
+  cursor, and gives it a block ID when it has none.
+
 A line can be sent when it is a plain bullet, `[ ]` or `[/]`.
 
 ## What is sent
@@ -45,8 +49,19 @@ Lines below the task:
 - A child task that is done or cancelled is not sent.
 - Other child lines go in the description of the task above them.
 
-The description starts with a link back to the note, at the nearest heading
-above the task.
+The description starts with a link back to the note, at the heading above the
+task.
+
+## Links to a place in a note
+
+The link in the description and the two copy commands make a Markdown link with
+an `obsidian://` address. The text is the note, then the headings down to the
+place:
+
+```markdown
+[Project > Log > 2026-01-01](obsidian://open?vault=notes&file=Project%23Log%232026-01-01)
+[Project > Log > 2026-01-01 ^k3x9ab](obsidian://open?vault=notes&file=Project%23%5Ek3x9ab)
+```
 
 ## Where a task goes
 

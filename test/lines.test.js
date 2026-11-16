@@ -121,3 +121,14 @@ test("targets resolve against Todoist names", () => {
   assert.equal(context.nearestName(catalog.projects, "persnal").name, "personal");
   assert.equal(context.nearestName(catalog.projects, "music"), undefined);
 });
+
+test("the heading chain of a line", () => {
+  const heading = (level, text, line) => ({ level, heading: text, position: { start: { line } } });
+  const headings = [heading(2, "Tasks", 2), heading(3, "Actions", 5), heading(2, "Log", 9), heading(4, "2026-01-01", 11), heading(3, "Later", 14)];
+  const chain = (line) => plain(context.headingChain(headings, line));
+  assert.deepEqual(chain(0), []);
+  assert.deepEqual(chain(5), ["Tasks", "Actions"]);
+  assert.deepEqual(chain(9), ["Log"]);
+  assert.deepEqual(chain(12), ["Log", "2026-01-01"]);
+  assert.deepEqual(chain(20), ["Log", "Later"]);
+});

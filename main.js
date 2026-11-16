@@ -9,6 +9,7 @@ const {
   Setting,
   debounce,
   requestUrl,
+  stripHeadingForLink,
 } = require("obsidian");
 
 /*
@@ -83,6 +84,17 @@ function blockEnd(lines, start) {
     end = index + 1;
   }
   return end;
+}
+
+// The headings that enclose a line, outermost first.
+function headingChain(headings, line) {
+  const chain = [];
+  for (const heading of headings) {
+    if (heading.position.start.line > line) break;
+    while (chain.length && chain[chain.length - 1].level >= heading.level) chain.pop();
+    chain.push(heading);
+  }
+  return chain.map((heading) => heading.heading);
 }
 
 function tagsIn(text) {
@@ -299,6 +311,18 @@ class SendToTodoistPlugin extends Plugin {
       editorCallback: (editor, view) => this.sendTagged(editor, view.file),
     });
     this.addCommand({
+      id: "copy-heading-link",
+      name: "Copy link to heading",
+      icon: "link",
+      editorCallback: (editor, view) => this.copyLink(this.placeLink(view.file, editor.getCursor().line)),
+    });
+    this.addCommand({
+      id: "copy-block-link",
+      name: "Copy link to block",
+      icon: "link",
+      editorCallback: (editor, view) => this.copyBlockLink(editor, view.file),
+    });
+    this.addCommand({
       id: "doctor",
       name: "Open doctor",
       icon: "stethoscope",
@@ -402,6 +426,36 @@ class SendToTodoistPlugin extends Plugin {
     return null;
   }
 
+  // A Markdown link to a line's place in a note: the headings above it, or a block of it.
+  placeLink(file, line, blockId) {
+    const headings = headingChain(this.app.metadataCache.getFileCache(file)?.headings ?? [], line).map(stripHeadingForLink);
+    const shown = [file.basename, ...headings].join(" > ") + (blockId ? ` ^${blockId}` : "");
+    const subpath = blockId ? `^${blockId}` : headings.join("#");
+    return `[${shown}](${obsidianUri(this.linkVault(), file.path.replace(/\.md$/, ""), subpath)})`;
+  }
+
+  async copyLink(link) {
+    await navigator.clipboard.writeText(link);
+    new Notice("Link copied.");
+  }
+
+  // Gives the block at the cursor an ID when it has none. The ID goes at the end of a list item's line or of a paragraph.
+  copyBlockLink(editor, file) {
+    const cursor = editor.getCursor().line;
+    const paragraph = this.app.metadataCache
+      .getFileCache(file)
+      ?.sections?.find((section) => section.type === "paragraph" && section.position.start.line <= cursor && cursor <= section.position.end.line);
+    const line = parseListItem(editor.getLine(cursor)) ? cursor : paragraph?.position.end.line;
+    if (line === undefined) return new Notice("A block link needs a paragraph or a list item.");
+    const text = editor.getLine(line);
+    let id = text.match(/\s\^([A-Za-z0-9-]+)\s*$/)?.[1];
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 8);
+      editor.replaceRange(` ^${id}`, { line, ch: text.trimEnd().length }, { line, ch: text.length });
+    }
+    return this.copyLink(this.placeLink(file, line, id));
+  }
+
   // ---- Send ----
 
   sendSelection(editor, file) {
@@ -472,12 +526,8 @@ class SendToTodoistPlugin extends Plugin {
       }
 
       const destination = resolved.section ? { section_id: resolved.section.id } : resolved.project ? { project_id: resolved.project.id } : null;
-      const headings = this.app.metadataCache.getFileCache(file)?.headings ?? [];
       for (const task of tasks) {
-        const heading = headings.filter((candidate) => candidate.position.start.line < task.line).pop()?.heading;
-        const shown = [file.basename, heading].filter(Boolean).join(" > ");
-        const link = `[${shown}](${obsidianUri(this.linkVault(), file.path.replace(/\.md$/, ""), heading)})`;
-        await this.createTask(task, destination, [link, ...task.notes], target.labels, lines, edits);
+        await this.createTask(task, destination, [this.placeLink(file, task.line), ...task.notes], target.labels, lines, edits);
       }
     } catch (error) {
       new Notice(error.message, 10000);
