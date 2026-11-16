@@ -82,6 +82,7 @@ appear under Inbox. A click on a note opens it beside the doctor.
 - **Marker tag** and **Marker property**: `todoist` by default.
 - **Vault name in links**: the vault name used in `obsidian://` links. Leave it
   empty to make links without a vault name.
+- **Templates folder**: the doctor ignores notes in this folder.
 
 ## Install
 

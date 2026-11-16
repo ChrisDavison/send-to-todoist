@@ -39,6 +39,8 @@ const DEFAULT_SETTINGS = {
   markerProperty: "todoist",
   // null: use the name of the current vault. Empty: links carry no vault name.
   vault: null,
+  // The doctor ignores the notes in this folder.
+  templatesFolder: "",
 };
 
 const LIST_ITEM = /^(\s*)([-*+]|\d+[.)])\s+(?:\[(.)\](?:\s+|$))?(.*)$/;
@@ -646,7 +648,9 @@ class DoctorView extends ItemView {
   scan(catalog) {
     const entries = new Map();
     const unassigned = [];
+    const { templatesFolder } = this.plugin.settings;
     for (const file of this.app.vault.getMarkdownFiles()) {
+      if (templatesFolder && file.path.startsWith(`${templatesFolder}/`)) continue;
       const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
       if (!frontmatter) continue;
       const holder = this.plugin.targetHolder(file);
@@ -847,6 +851,11 @@ class SendToTodoistSettingTab extends PluginSettingTab {
       .setName("Vault name in links")
       .setDesc("Empty: links open in the vault that is open.")
       .addText((text) => text.setValue(this.plugin.linkVault()).onChange(save("vault", (value) => value.trim())));
+
+    new Setting(containerEl)
+      .setName("Templates folder")
+      .setDesc("The doctor ignores notes in this folder.")
+      .addText((text) => text.setValue(settings.templatesFolder).onChange(save("templatesFolder", (value) => value.trim().replace(/^\/+|\/+$/g, ""))));
   }
 }
 
