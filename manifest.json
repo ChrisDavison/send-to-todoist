@@ -1,0 +1,10 @@
+{
+  "id": "send-to-todoist",
+  "name": "Send to Todoist",
+  "version": "0.1.0",
+  "minAppVersion": "1.11.4",
+  "description": "Move a task line into Todoist, one way: the line becomes [>] with a link to the Todoist task.",
+  "author": "Chris Davison",
+  "authorUrl": "https://github.com/ChrisDavison",
+  "isDesktopOnly": false
+}
